@@ -29,7 +29,7 @@ You'll have received your IAM username and password from the facilitator. To sig
     1. **NOTE:** if you close and re-open the Session Manager Session/Terminal window then you'll need to rerun those two commands to return to the root user and its home directory.
 1. Type **kubectl get pods -A** and you'll see a list of all the running Pods in your EKS cluster.
 
-NOTE: Even though we will refer you to a few example files on GitHub throughout the workshop, everything you need has already been pre-loaded onto the jumpbox in /root. You don't need to copy/paste or **git clone** anything today from GitHub.
+> **NOTE**: Even though we will refer you to a few example files on GitHub throughout the workshop, everything you need to run has already been pre-installed onto the jumpbox in /root. You don't need to copy/paste or **git clone** anything from GitHub today.
 
 ### Sysdig environment
 
