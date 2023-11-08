@@ -343,8 +343,6 @@ To learn more about the syntax of NetworkPolicies there is a great resource on G
 
 This was just a brief introduction of some of the many capabilities that Sysdig offers customers to help with securing your Kubernetes environments, including AWS EKS, as-a-service.
 
-You can sign up for a free Sysdig trial at https://sysdig.com/start-free/ and have a look for yourself in your own environment(s) today!
-
 If you have any questions please reach out to me at jason.umiker@sysdig.com
 
 Thank you for coming!
