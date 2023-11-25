@@ -103,7 +103,8 @@ In addition to our 'traditional' Rules/Policies-based approach, there are two mo
             1. Note that if you expand out the Process section it'll show the commands that were run such as that **psql** that was exfiltrating our data
             1. ![](instruction-images/psql.png)
         1. **Contact EC2 Instance Metadata Service From Container** - your EKS Pods should be using other means such as [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) to interact with AWS. It going through the Node to use its credentials instead is suspicious
-        1. **Malicious filenames written** and **Malicious binary detected** - we look for many suspicious filenames and hashes from our threat feeds - including crypto miners such as the **xmrig** here
+        1. **Malware Detection** - we look for many malware filenames and hashes from our threat feeds - including crypto miners such as the **xmrig** here
+            1. We can even block malware from running - as you'll see later on!
         1. **Detect outbound connections to common miner pool ports** - we look at network traffic (at Layer 3) and when the destination are suspicious things like crypto miner pools or [Tor](https://www.torproject.org/) entry nodes
 
 And this is only a small sample of the Rules we have out-of-the-box as part of the service!
@@ -114,6 +115,10 @@ And this is only a small sample of the Rules we have out-of-the-box as part of t
 
 ### The Activity Audit
 In addition to what you saw above, we also capture all the interactive commands that are run as well as the associated file and network activity in the Activity Audit - even if they do not fire an Event.
+
+This all gets aggregated together on the same timeline (though you can obviously filter it down too) - which helps to see what lateral movement people are doing hopping between machines.
+
+You can install the Sysdig Agent on any Linux machine (and soon Windows too!) - and we have installed it on our Jumpbox in addition to our EKS cluster. That means all of the interactive commands that we've run so far in the workshop will have been captured there!
 
 To see that go to the **Investigate** section on the Left then **Activity Audit**.
 ![](instruction-images/aa.png)
@@ -167,14 +172,22 @@ To see how our attack fares with 1-3 fixed run **./example-curls-restricted.sh**
 * Without **root**, **hostPid** and **privileged** it couldn't escape the container
 * The only things that worked were hitting the Node's EC2 Metadata endpoint and downloading/running the xmrig crypto miner into the user's home directory (where it still had rights to do so.)
 
-And, if we also add in Sysdig enforcing that any Container Drift is prevented (that no new executables added at runtime can be run), then that blocks *everything* but the EC2 Instance Metadata access (which we'll block with NetworkPolicies in Module 4). To see that: 
+If we also add in Sysdig enforcing that any Container Drift is prevented (that no new executables added at runtime can be run), then that blocks *everything* but the EC2 Instance Metadata access (which we'll block with NetworkPolicies in Module 4). To see that: 
 * Go to **Policies** -> **Runtime Policies** and then look at **security-playground-restricted-nodrift** - Note that rather than just detecting drift (as in the other Namespaces) we are blocking it if the workload is in the **security-playground-restricted-nodrift** Namespace
     * And we have a another copy of our security-playground-restricted service running there on a different HostPort
 * Run **./example-curls-restricted-nodrift.sh** which runs all those same curls but against a workload that is both restricted like the last example but also has Sysdig preventing Container Drift (rather than just detecting it)
     1. If you look at the resulting Events in our Insights UI you'll see the Drift was **prevented** rather than just detected this time
     1. ![](instruction-images/driftprevented.png)
 
-So, as you can see, a combination of fixing the posture of the workload as well as Sysdig's Container Drift goes a long way to preventing so many common attacks - even against vulnerable workloads!
+And, we also can now block instead of just detecting Malware.
+To see that: 
+* Go to **Policies** -> **Runtime Policies** and then look at **security-playground-restricted-nomalware** - Note that rather than just detecting malware (as in the other Namespaces) we are blocking it if the workload is in the **security-playground-restricted-nodrift** Namespace
+    * And we have a another copy of our security-playground-restricted service running there on a different HostPort
+* Run **./example-curls-restricted-nomalware.sh** which runs all those same curls but against a workload that is both restricted like the last example but also has Sysdig preventing malware (rather than just detecting it)
+    1. If you look at the resulting Events in our Insights UI you'll see the Malware was **prevented** from running rather than just detected this time
+    1. ![](instruction-images/malware.png)
+
+So, as you can see, a combination of fixing the posture of the workload as well as Sysdig's Container Drift and Malware Detection goes a **long** way to preventing so many common attacks - even against workload with such critical vulnerabilities!
 
 One last thing you can try is to test trying to change security-playground-restricted to undermine its security like security-playground. Run the following command to try to deploy the insecure container image and PodSpec to that namespace **kubectl apply -f security-playground-test.yaml**. Note how we're warned that is not allowed in the **security-playground-restricted** Namespace due to the restricted PSA in place there. Even though it let the Deployment create - you'll note that it (actually its ReplicaSet) is unable to actually launch the Pods.
 ![](instruction-images/psa.png)
@@ -184,18 +197,18 @@ Run **kubectl events security-playground -n security-playground-restricted** to 
 This is why blocking at runtime with PSAs are a bit of a blunt instrument - you should also let people know earlier/lefter in the pipeline that this is going to happen (and they need to fix the PodSpecs) rather than have them scratch their head on why their pods are not launching.
 
 This table summarises our experiments in fixing this workload:
-||security-playground|security-playground-restricted|security-playground-restricted + container drift enforcement|
-|-|-|-|-|
-|1|allowed|blocked (by not running as root)|blocked (by not running as root)|
-|2|allowed|blocked (by not running as root)|blocked (by not running as root)|
-|3|allowed|blocked (by not running as root)|blocked (by not running as root)|
-|4|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
-|5|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
-|6|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
-|7|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
-|8|allowed|blocked (by ServiceAccount not being overprovisioned)|blocked (by ServiceAccount not being overprovisioned and Container Drift)|
-|9*|allowed|allowed|allowed|
-|10|allowed|allowed|blocked (by Container Drift)|
+|Exploit in the example-curl.sh|example-curl|security-playground|security-playground-restricted|security-playground-restricted + container drift enforcement|security-playground-restricted + malware enforcement|
+|-|-|-|-|-|-|
+|1|Reading the sensitive path /etc/shadow|allowed|blocked (by not running as root)|blocked (by not running as root)|blocked (by not running as root)|
+|2|Writing a file to /bin then chmod +x'ing it and running it|allowed|blocked (by not running as root)|blocked (by not running as root)|blocked (by not running as root)|
+|3|Installing nmap from apt and then running a network scan|allowed|blocked (by not running as root)|blocked (by not running as root)|blocked (by not running as root)|
+|4|Running the nsenter command to 'break out' of our container Linux namespace to the host|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
+|5|Running the crictl command against the container runtime for the Node|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
+|6|Using the crictl command to grab a Kubernetes secret from another Pod on the same Node|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
+|7|Using the crictl command to run the Postgres CLI psql within another Pod on the same Node to exfiltrate some sensitive data|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
+|8|Using the Kubernetes CLI kubectl to launch another nefarious workload|allowed|blocked (by ServiceAccount not being overprovisioned)|blocked (by ServiceAccount not being overprovisioned and Container Drift)|blocked (by ServiceAccount not being overprovisioned)|
+|9*|Running a curl command against the AWS EC2 Instance Metadata endpoint for the Node from the security-playground Pod|allowed|allowed|allowed|allowed|
+|10|Run the xmrig crypto miner|allowed|allowed|blocked (by Container Drift Enforcement)|blocked (by Malware Enforcement)
 
 *And 9 can be blocked by NetworkPolicy and/or limitations of IDMSv2 to 1 hop. We'll do that in Module 4.
 
@@ -343,6 +356,6 @@ To learn more about the syntax of NetworkPolicies there is a great resource on G
 
 This was just a brief introduction of some of the many capabilities that Sysdig offers customers to help with securing your Kubernetes environments, including AWS EKS, as-a-service.
 
-If you have any questions please reach out to me at jason.umiker@sysdig.com
+We'd love to show you more about what Sysdig can do for you in a free trial in your own enviornment. Reach out to your facilitator for details.
 
 Thank you for coming!
