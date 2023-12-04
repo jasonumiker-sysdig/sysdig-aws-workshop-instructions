@@ -15,7 +15,7 @@ You'll have received your IAM username and password from the facilitator. To sig
 1. Open a web browser and go to https://aws.amazon.com/console/
 1. If prompted, choose to sign in with an IAM user (as opposed to the Root user) and enter the AWS Account ID of **sysdig-sales-engineering** 
 1. Enter the IAM username and password you were provided and click the **Sign in** button
-1. Pick the **Sydney** or **Singapore** region in the drop-down in the upper right of the console (you'll have been told which of the two with your login details)
+1. Pick the **Sydney** region in the drop-down in the upper right of the console
     1. ![](instruction-images/region.png)
 1. Go to the EC2 service's console (you can type EC2 in the Search box on top and then click on the EC2 service in the results)
 1. Click on the **Instances (running)** link under **Resources** to be taken to a list of running EC2 Instances 
@@ -52,9 +52,10 @@ Our agent(s) continually watch for the **Rules** against various streams of acti
 * The Kubernetes Audit Trail
 * The audit trails of AWS, Azure and GCP
 
-In addition to our 'traditional' Rules/Policies-based approach, there are two more features that round out our Threat Detection/Prevention capabilities:
+In addition to our 'traditional' Rules/Policies-based approach, there are three more features that round out our Threat Detection/Prevention capabilities:
 * [Container Drift](https://docs.sysdig.com/en/docs/sysdig-secure/policies/threat-detect-policies/manage-policies/drift-control/) - we can look for any executables that are introduced at runtime that were not in the container image as it was pulled - as well as optionally block them from running
 * [Crypto Mining ML Detection](https://docs.sysdig.com/en/docs/sysdig-secure/policies/threat-detect-policies/manage-policies/machine-learning/) - we have introduced our first Machine Learning enabled detection with a model specifically focused on detecting crypto-mining.
+* Malware (Preview) - we can look for Malware (as defined in several threat feeds we watch) that tries to run - as well as optionally block them from running
 
 ### Simulating an attack to generate Events within Sysdig
 
@@ -90,7 +91,10 @@ In addition to our 'traditional' Rules/Policies-based approach, there are two mo
     1. If you click into the the top **Detect outbound connections to common miner pools** and then scroll through it you'll see all the context of that event including details of the process, the network, the AWS account, the Kubernetes cluster/namespace/deployment, the host as well as the container
        1. In particular the process tree view shows us that our Python app (gunicorn) launched a shell that launched the crypto miner xmrig - that looks suspicious!
        1. ![](instruction-images/processtree.png)
-       1. You can also expand out each section by clicking the carrot exposing even more details/context
+       1. You can also click Explore in order to see a more detailed view of this process tree and the history within this environment
+       1. ![](instruction-images/explore.png)
+       1. Not only does this view show us all the other Events related to this executable (xmrig) on the right, it shows us all the other things that have been happening - the apt-get's, nmap, nsenter's, etc.
+       1. ![](instruction-images/explore2.png)
 1. Understanding these Events
     1. You should scroll down to the oldest/first Event then click into each to reveal all the detail/context of each. The things that we picked up here include:
         1. **Read sensitive file untrusted** - reading the **/etc/shadow** file which a web service shouldn't be doing
@@ -118,7 +122,7 @@ In addition to what you saw above, we also capture all the interactive commands 
 
 This all gets aggregated together on the same timeline (though you can obviously filter it down too) - which helps to see what lateral movement people are doing hopping between machines.
 
-You can install the Sysdig Agent on any Linux machine (and soon Windows too!) - and we have installed it on our Jumpbox in addition to our EKS cluster. That means all of the interactive commands that we've run so far in the workshop will have been captured there!
+You can install the Sysdig Agent on any Linux machine (and soon Windows too!) - and we have installed it on our Jumpbox in addition to our EKS cluster. That means all of the interactive commands that we've run so far in the workshop will have been captured there! If somebody had SSHed onto any of the EKS Nodes or run a command anywhere our agent is installed we'd have captured it too the same way.
 
 To see that go to the **Investigate** section on the Left then **Activity Audit**.
 ![](instruction-images/aa.png)
@@ -132,6 +136,7 @@ In order for this attack to succeed many things had to be true:
 1. The PodSpec had [**hostPID: true**](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/security-playground.yaml#L47) as well as [privileged **securityContext**](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/security-playground.yaml#L64) which allowed it to escape its container boundary (the Linux namespace it was being run in) to the host
 1. The attacker was able to add new executables like **nmap** and the crypto miner **xmrig** to the container at runtime and run them
 1. The attacker was able to download those things from the Internet (because this Pod was able to reach everywhere on the Internet via its egress)
+1. The ServiceAccount for our service was over-provisioned and could call the K8s API to do things like launch other workloads (which it didn't need)
 1. The attacker was able to reach the EC2 Metadata endpoint (169.254.0.0/16),  which is intended just for the EKS Node, from within the Pod
 
 These are all things we can fix:
@@ -160,6 +165,7 @@ For each of the causes above - these are the solutions:
     1. And Sysdig has a Posture/Compliance feature that can help both catch the IaC before it is deployed as well as remediate any issues at runtime - which we'll look at in the 3rd module.
 1. We can block the execution of any new scripts/binaries added at runtime with Container Drift (in this case we only had it detecting not preventing Drift)
 1. We can limit the egress access of Pod(s) to the Internet via either Kubernetes NetworkPolicy (which we cover in Module 4) or by making each thing go through an explicit authenticated proxy to reach the Internet with an allow-list of what that service is able to reach etc.
+1. We can remove the Role and RoleBinding to the Kubernetes API by our default ServiceAccount that lets it have unnecessary access to to the Kubernetes API.
 1. We can either block egress access for the Pod to 169.254.0.0/16 via NetworkPolicy as described above and/or ensure a maximum of 1 hop with IDMSv2 as AWS describes in their documentation - https://docs.aws.amazon.com/whitepapers/latest/security-practices-multi-tenant-saas-applications-eks/restrict-the-use-of-host-networking-and-block-access-to-instance-metadata-service.html
 
 ### Seeing the fixes in action
@@ -181,9 +187,9 @@ If we also add in Sysdig enforcing that any Container Drift is prevented (that n
 
 And, we also can now block instead of just detecting Malware.
 To see that: 
-* Go to **Policies** -> **Runtime Policies** and then look at **security-playground-restricted-nomalware** - Note that rather than just detecting malware (as in the other Namespaces) we are blocking it if the workload is in the **security-playground-restricted-nodrift** Namespace
+* Go to **Policies** -> **Runtime Policies** and then look at **security-playground-restricted-nomalware** - Note that rather than just detecting malware (as in the other Namespaces) we are blocking it if the workload is in the **security-playground-restricted-nomalware** Namespace
     * And we have a another copy of our security-playground-restricted service running there on a different HostPort
-* Run **./example-curls-restricted-nomalware.sh** which runs all those same curls but against a workload that is both restricted like the last example but also has Sysdig preventing malware (rather than just detecting it)
+* Run **./example-curls-restricted-nomalware.sh** which runs all those same curls but against a workload that is both restricted but also has Sysdig preventing malware (rather than just detecting it) (but not blocking Container Drift - as we want to show that the malware tries to run so we can block it with that)
     1. If you look at the resulting Events in our Insights UI you'll see the Malware was **prevented** from running rather than just detected this time
     1. ![](instruction-images/malware.png)
 
@@ -206,11 +212,96 @@ This table summarises our experiments in fixing this workload:
 |5|Running the crictl command against the container runtime for the Node|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
 |6|Using the crictl command to grab a Kubernetes secret from another Pod on the same Node|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
 |7|Using the crictl command to run the Postgres CLI psql within another Pod on the same Node to exfiltrate some sensitive data|allowed|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|blocked (by not running as root and no hostPID and no privileged securityContext)|
-|8|Using the Kubernetes CLI kubectl to launch another nefarious workload|allowed|blocked (by ServiceAccount not being overprovisioned)|blocked (by ServiceAccount not being overprovisioned and Container Drift)|blocked (by ServiceAccount not being overprovisioned)|
+|8|Using the Kubernetes CLI kubectl to launch another nefarious workload|allowed|blocked (by ServiceAccount not being overprovisioned)|blocked (by ServiceAccount not being overprovisioned and Container Drift Enforcement preventing kubectl being installed)|blocked (by ServiceAccount not being overprovisioned)|
 |9*|Running a curl command against the AWS EC2 Instance Metadata endpoint for the Node from the security-playground Pod|allowed|allowed|allowed|allowed|
-|10|Run the xmrig crypto miner|allowed|allowed|blocked (by Container Drift Enforcement)|blocked (by Malware Enforcement)
+|10|Run the xmrig crypto miner|allowed|allowed|blocked (by Container Drift Enforcement blocking xmrig from being installed)|blocked (by Malware Enforcement)
 
 *And 9 can be blocked by NetworkPolicy and/or limitations of IDMSv2 to 1 hop. We'll do that in Module 4.
+
+### Cloud Threat Detection (AWS CloudTrail)
+Sysdig's Runtime Threat Detection is not limited to your Linux Kernel Syscalls and Kubernetes Audit trail - it can also do agentless runtime threat detection against AWS CloudTrail (as well as Azure, GCP, Okta and GitHub - with more coming all the time)! When we say agentless, we mean that the Falco watching your CloudTrail is run by Sysdig in our SaaS backend for you. You optionally *could* run an agent in your account called the [Cloud Connector](https://docs.sysdig.com/en/docs/installation/sysdig-secure/connect-cloud-accounts/aws/agent-based-with-ciem/) as well - but most customers prefer Sysdig does that for them as-a-service.
+
+Let's have a quick look at an AWS CloudTrail detection - and why covering both your EKS and AWS environments is important.
+
+#### AWS IAM Roles for Service Accounts (IRSA)
+AWS EKS has a mechanism for giving Pod's access to the AWS APIs called [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html). In short, this binds a particular service account in Kubernetes to an IAM Role in AWS - and will automatically mount credentials for using that AWS IAM role into any Pods that use that Kubernetes service account at runtime.
+
+We've prepared an IRSA mapping already - the **irsa** ServiceAccount in the **security-playground** Namespace is bound to an AWS IAM Role that has the **Action": "s3:*"** policy applied for an S3 bucket for your Attendee in this account. If you run the command below you'll see an Annotation on the ServiceAccount with the ARN of that IAM Role:
+**kubectl get serviceaccount irsa -n security-playground -o yaml**
+
+Go to the AWS IAM console and have a look at that Role and its in-line polices if you'd like - any Pod in Kubernetes that runs with the irsa ServiceAccount will automatically get this Role.
+
+It has the following in-line policy - one which we commonly see which is a * for the s3 service (really two to cover the bucket itself as well as the contents). It is properly scoped down to a single bucket Resource, which is better than nothing, but you'll see why a * for this service is a bad idea.
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": "s3:*",
+            "Resource": "arn:aws:s3:::attendeestack1-bucket83908e77-1d84qdfaymy9u",
+            "Effect": "Allow"
+        },
+        {
+            "Action": "s3:*",
+            "Resource": "arn:aws:s3:::attendeestack1-bucket83908e77-1d84qdfaymy9u/*",
+            "Effect": "Allow"
+        }
+    ]
+}
+```
+
+You'll also note if you look at the trust relationships you'll see that this role can be only be assumed by the **irsa** ServiceAccount in the **security-playground** Namespace within the EKS cluster that has been assigned this unique OIDC provider for AWS IAM to integrate with.
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::090334159717:oidc-provider/oidc.eks.ap-southeast-2.amazonaws.com/id/25A0C359024FB4B509E838B84988ABB0"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "oidc.eks.ap-southeast-2.amazonaws.com/id/25A0C359024FB4B509E838B84988ABB0:aud": "sts.amazonaws.com",
+                    "oidc.eks.ap-southeast-2.amazonaws.com/id/25A0C359024FB4B509E838B84988ABB0:sub": "system:serviceaccount:security-playground:irsa"
+                }
+            }
+        }
+    ]
+}
+```
+
+#### The Exploit
+We have an updated manifest for the security-playground Deployment that will use this irsa ServiceAccount instead of the default one we have been using. First, apply that by running **kubectl apply -f security-playground-irsa.yaml** to apply that change.
+
+Then we need to install the AWS CLI into our container at runtime and run some commands to exploit it. There is an **example-curls-bucket-public.sh** file in /root - have a look at that with a **cat example-curls-bucket-public.sh** then run it with **./example-curls-bucket-public.sh**
+
+If you look at this bucket in the S3 console you'll see that it (and all of its contents) is now public (and can be downloaded/exfiltrated by the attacker right from the S3 public APIs)!
+![](instruction-images/bucketpublic.png)
+
+#### The Detection
+
+On the host side you'll see many **Drift Detections** which will include the commands being run against AWS - and which we could have blocked rather than just detected with Container Drift. This is a good reason to not include CLIs like the AWS one in your images as well! ![](instruction-images/s3drift.png)
+
+But on the AWS API side we'll see that the protections against this bucket being made public were removed as well as the new Bucket Policy (making them public) were applied as well!
+
+![](instruction-images/s3cloudevents.png)
+![](instruction-images/s3cloudevents2.png)
+
+> **NOTE**: This is, unfortunately, not visible to you just yet as we have your Sysdig user/Team filtered to show just your Kubernetes cluster and Jumpbox. The course instructor will show you these events as all of you run these commands in this AWS account today - and they will be  made visible to the workshop attendees in the future after some forthcoming improvements to the workshop on Team scoping.
+
+#### The Fix
+
+This IRSA example could have been prevented with:
+* Being more granular and least-privilege with your IRSA's policy to not use s3* and therefore allow the removal of public blocks or applying Bucket Policies (just reading/writing files etc.)
+    * This is where things like [Permission Boundaries](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html) and [Service Control Policies (SCPs)](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html) can be helpful too in ensuring that Roles don't get created that are this over-privileged. 
+    * ![](https://docs.aws.amazon.com/images/IAM/latest/UserGuide/images/EffectivePermissions-scp-boundary-id.png)
+* Enforcing Container Drift with Sysdig so the AWS CLI isn't able to be downloaded/run at runtime (as long as you also ensure it also isn't in your images)
+
+Either would have prevented it in our example but ideally you'd do both things...
 
 ## Module 2 - Host and Container Vulnerability Management
 
