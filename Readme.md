@@ -136,7 +136,18 @@ In order for this attack to succeed many things had to be true:
 1. The PodSpec had [**hostPID: true**](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/security-playground.yaml#L47) as well as [privileged **securityContext**](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/security-playground.yaml#L64) which allowed it to escape its container boundary (the Linux namespace it was being run in) to the host
 1. The attacker was able to add new executables like **nmap** and the crypto miner **xmrig** to the container at runtime and run them
 1. The attacker was able to download those things from the Internet (because this Pod was able to reach everywhere on the Internet via its egress)
-1. The ServiceAccount for our service was over-provisioned and could call the K8s API to do things like launch other workloads (which it didn't need)
+1. The ServiceAccount for our service was over-provisioned and could call the K8s API to do things like launch other workloads (which it didn't need).
+    1. Run **kubectl get rolebindings -o yaml -n security-playground && kubectl get roles -o yaml -n security-playground** to see that the default ServiceAccount has a Role bound to it with it with the following rules/permissions:
+        ```
+        rules:
+        - apiGroups:
+            - '*'
+            resources:
+            - '*'
+            verbs:
+            - '*'
+        ```
+    1. At least it was a Role rather than a ClusterRole - meaning it can only do things with this Namespace. But there is plenty of damage you can do with full admin within a Namespace!
 1. The attacker was able to reach the EC2 Metadata endpoint (169.254.0.0/16),  which is intended just for the EKS Node, from within the Pod
 
 These are all things we can fix:
