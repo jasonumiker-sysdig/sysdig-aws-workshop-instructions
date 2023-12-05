@@ -41,7 +41,7 @@ You'll have received a login and password for Sysdig from the facilitator. To si
 1. Enter the email address and password you were provided for Sysdig and click the **Log in** button
 1. If you see the Customize your Sysdig experience screen, then click the **Get into Sysdig** button in the lower right hand corner to take you through to the **Home** screen
 
-## Module 1 - Runtime Threat Detection and Prevention
+## Module 1 - Runtime Threat Detection and Prevention (Workload/Kubernetes)
 
 In our first module, we'll be exploring Sysdig's capabilities around detecting - and even preventing - runtime threats.
 
@@ -162,7 +162,7 @@ And, if we do all three, then we could have prevented the **entire** attack (rat
 For each of the causes above - these are the solutions:
 1. To fix the vulnerabilities in our case here, we can use a Static application security testing (SAST) product to identify our insecure code. Our partner [Snyk](https://snyk.io/product/snyk-code/) is a good choice here. 
     1. ![](instruction-images/Snyk-SAST.png)
-    1. Alternatively, if this was based on a known/public CVE within the app/container (such as Log4J etc.) instead, Sysdig's Vulnerability Management (which we'll explore in the next module) would have detected it and let us know to patch either the base layer of our container or the code package to an updated version without the vulnerability
+    1. Alternatively, if this was based on a known/public CVE within the app/container (such as Log4J etc.) instead, Sysdig's Vulnerability Management (which we'll explore in a future Module) would have detected it and let us know to patch either the base layer of our container or the code package to an updated version without the vulnerability
 1. In order to run this container as non-root we actually need to change the Dockerfile in the following ways. Here is the [Dockerfile](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/docker-build-security-playground/Dockerfile) before these changes - and [here](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/docker-build-security-playground/Dockerfile-unprivileged) it is after.
     1. We need to [add a user and group to use](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/docker-build-security-playground/Dockerfile-unprivileged#L3) as part of the docker build
     1. We need to [specify in the Dockerfile to run as that User by default](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/docker-build-security-playground/Dockerfile-unprivileged#L8) (note this is just the default and can be overridden at runtime - unless a restricted PSA or other admission controller blocks that)
@@ -173,9 +173,9 @@ For each of the causes above - these are the solutions:
         1. This works by [adding labels onto each Namespace](https://kubernetes.io/docs/tasks/configure-pod-container/enforce-standards-namespace-labels/). There are two standards that it can warn about and/or enforce for you - baseline and restricted.
             1. [baseline](https://kubernetes.io/docs/concepts/security/pod-security-standards/#baseline) - this prevents the worst of the parameters in the PodSpec such as hostPid and Privileged but still allows the container to run as root
             1. [restricted](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted) - this goes further and blocks all insecure options including running as non-root
-    1. And Sysdig has a Posture/Compliance feature that can help both catch the IaC before it is deployed as well as remediate any issues at runtime - which we'll look at in the 3rd module.
+    1. And Sysdig has a Posture/Compliance feature that can help both catch the IaC before it is deployed as well as remediate any issues at runtime - which we'll look at in a future Module.
 1. We can block the execution of any new scripts/binaries added at runtime with Container Drift (in this case we only had it detecting not preventing Drift)
-1. We can limit the egress access of Pod(s) to the Internet via either Kubernetes NetworkPolicy (which we cover in Module 4) or by making each thing go through an explicit authenticated proxy to reach the Internet with an allow-list of what that service is able to reach etc.
+1. We can limit the egress access of Pod(s) to the Internet via either Kubernetes NetworkPolicy (which we cover in a future Module) or by making each thing go through an explicit authenticated proxy to reach the Internet with an allow-list of what that service is able to reach etc.
 1. We can remove the Role and RoleBinding to the Kubernetes API by our default ServiceAccount that lets it have unnecessary access to to the Kubernetes API.
 1. We can either block egress access for the Pod to 169.254.0.0/16 via NetworkPolicy as described above and/or ensure a maximum of 1 hop with IDMSv2 as AWS describes in their documentation - https://docs.aws.amazon.com/whitepapers/latest/security-practices-multi-tenant-saas-applications-eks/restrict-the-use-of-host-networking-and-block-access-to-instance-metadata-service.html
 
@@ -189,7 +189,7 @@ To see how our attack fares with 1-3 fixed run **./example-curls-restricted.sh**
 * Without **root**, **hostPid** and **privileged** it couldn't escape the container
 * The only things that worked were hitting the Node's EC2 Metadata endpoint and downloading/running the xmrig crypto miner into the user's home directory (where it still had rights to do so.)
 
-If we also add in Sysdig enforcing that any Container Drift is prevented (that no new executables added at runtime can be run), then that blocks *everything* but the EC2 Instance Metadata access (which we'll block with NetworkPolicies in Module 4). To see that: 
+If we also add in Sysdig enforcing that any Container Drift is prevented (that no new executables added at runtime can be run), then that blocks *everything* but the EC2 Instance Metadata access (which we'll block with NetworkPolicies in a future Module). To see that: 
 * Go to **Policies** -> **Runtime Policies** and then look at **security-playground-restricted-nodrift** - Note that rather than just detecting drift (as in the other Namespaces) we are blocking it if the workload is in the **security-playground-restricted-nodrift** Namespace
     * And we have a another copy of our security-playground-restricted service running there on a different HostPort
 * Run **./example-curls-restricted-nodrift.sh** which runs all those same curls but against a workload that is both restricted like the last example but also has Sysdig preventing Container Drift (rather than just detecting it)
@@ -227,20 +227,19 @@ This table summarises our experiments in fixing this workload:
 |9*|Running a curl command against the AWS EC2 Instance Metadata endpoint for the Node from the security-playground Pod|allowed|allowed|allowed|allowed|
 |10|Run the xmrig crypto miner|allowed|allowed|blocked (by Container Drift Enforcement blocking xmrig from being installed)|blocked (by Malware Enforcement)
 
-*And 9 can be blocked by NetworkPolicy and/or limitations of IDMSv2 to 1 hop. We'll do that in Module 4.
+*And 9 can be blocked by NetworkPolicy and/or limitations of IDMSv2 to 1 hop. We'll do that in the future NetworkPolicy Module.
 
-### Cloud Threat Detection (AWS CloudTrail)
+## Module 2 - Runtime Threat Detection and Prevention (Cloud/AWS)
+
 Sysdig's Runtime Threat Detection is not limited to your Linux Kernel Syscalls and Kubernetes Audit trail - it can also do agentless runtime threat detection against AWS CloudTrail (as well as Azure, GCP, Okta and GitHub - with more coming all the time)! When we say agentless, we mean that the Falco watching your CloudTrail is run by Sysdig in our SaaS backend for you. You optionally *could* run an agent in your account called the [Cloud Connector](https://docs.sysdig.com/en/docs/installation/sysdig-secure/connect-cloud-accounts/aws/agent-based-with-ciem/) as well - but most customers prefer Sysdig does that for them as-a-service.
 
 Let's have a quick look at an AWS CloudTrail detection - and why covering both your EKS and AWS environments is important.
 
-#### AWS IAM Roles for Service Accounts (IRSA)
+### AWS IAM Roles for Service Accounts (IRSA)
 AWS EKS has a mechanism for giving Pod's access to the AWS APIs called [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html). In short, this binds a particular service account in Kubernetes to an IAM Role in AWS - and will automatically mount credentials for using that AWS IAM role into any Pods that use that Kubernetes service account at runtime.
 
 We've prepared an IRSA mapping already - the **irsa** ServiceAccount in the **security-playground** Namespace is bound to an AWS IAM Role that has the **Action": "s3:*"** policy applied for an S3 bucket for your Attendee in this account. If you run the command below you'll see an Annotation on the ServiceAccount with the ARN of that IAM Role:
 **kubectl get serviceaccount irsa -n security-playground -o yaml**
-
-Go to the AWS IAM console and have a look at that Role and its in-line polices if you'd like - any Pod in Kubernetes that runs with the irsa ServiceAccount will automatically get this Role.
 
 It has the following in-line policy - one which we commonly see which is a * for the s3 service (really two to cover the bucket itself as well as the contents). It is properly scoped down to a single bucket Resource, which is better than nothing, but you'll see why a * for this service is a bad idea.
 
@@ -285,15 +284,15 @@ You'll also note if you look at the trust relationships you'll see that this rol
 }
 ```
 
-#### The Exploit
-We have an updated manifest for the security-playground Deployment that will use this irsa ServiceAccount instead of the default one we have been using. First, apply that by running **kubectl apply -f security-playground-irsa.yaml** to apply that change.
+### The Exploit
+If we install the AWS CLI into our container at runtime and run some commands we'll see if our Pod has been assigned an IRSA role and they succeed. There is an **example-curls-bucket-public.sh** file in /root - have a look at that with a **cat example-curls-bucket-public.sh** then run it with **./example-curls-bucket-public.sh**
 
-Then we need to install the AWS CLI into our container at runtime and run some commands to exploit it. There is an **example-curls-bucket-public.sh** file in /root - have a look at that with a **cat example-curls-bucket-public.sh** then run it with **./example-curls-bucket-public.sh**
+THe install of the AWS CLI succeeds but the S3 changes fail as we don't have that access. We have an updated manifest for the security-playground Deployment that will use this **irsa** ServiceAccount instead of the **default** one we have been using. Apply that by running **kubectl apply -f security-playground-irsa.yaml** to apply that change. Now re-run **./example-curls-bucket-public.sh** and this time they will work!
 
 If you look at this bucket in the S3 console you'll see that it (and all of its contents) is now public (and can be downloaded/exfiltrated by the attacker right from the S3 public APIs)!
 ![](instruction-images/bucketpublic.png)
 
-#### The Detection
+### The Sysdig Detections
 
 On the host side you'll see many **Drift Detections** which will include the commands being run against AWS - and which we could have blocked rather than just detected with Container Drift. This is a good reason to not include CLIs like the AWS one in your images as well! ![](instruction-images/s3drift.png)
 
@@ -304,7 +303,7 @@ But on the AWS API side we'll see that the protections against this bucket being
 
 > **NOTE**: This is, unfortunately, not visible to you just yet as we have your Sysdig user/Team filtered to show just your Kubernetes cluster and Jumpbox. The course instructor will show you these events as all of you run these commands in this AWS account today - and they will be  made visible to the workshop attendees in the future after some forthcoming improvements to the workshop on Team scoping.
 
-#### The Fix
+### How to prevent this attack / fix this workload
 
 This IRSA example could have been prevented with:
 * Being more granular and least-privilege with your IRSA's policy to not use s3* and therefore allow the removal of public blocks or applying Bucket Policies (just reading/writing files etc.)
@@ -314,7 +313,7 @@ This IRSA example could have been prevented with:
 
 Either would have prevented it in our example but ideally you'd do both things...
 
-## Module 2 - Host and Container Vulnerability Management
+## Module 3 - Host and Container Vulnerability Management
 
 There are many tools/vendors who can help you scan your Linux hosts and/or container images for vulnerabilities. And, depending on the solution, they scan them in different place - such as a developer's machine, your pipeline(s), your registry, and/or at runtime. Sysdig has one that can scan for known CVEs in all of those places - and, when when we do it at runtime, the added context we bring to it really can help you to route and prioritise things!
 
@@ -352,7 +351,7 @@ Not only do you get that output into your build logs for the pipeline stage, but
 
 We also have the [capability to scan images in your registries](https://docs.sysdig.com/en/docs/installation/sysdig-secure/install-registry-scanner/) - but we won't explore that in this workshop.
 
-## Module 3 - Kubernetes Posture/Compliance (i.e. fixing misconfigurations)
+## Module 4 - Kubernetes Posture/Compliance (i.e. fixing misconfigurations)
 
 As we learned in Module 1, it is very important that your Kubernetes/EKS clusters and the workloads on them are properly configured. This is referred to as either Posture or Compliance - as it is about your posture (all of your configuration(s) when taken together) and whether they are compliant with various standards/benchmarks. 
 
@@ -381,7 +380,7 @@ If these settings for **security-playground** were configured to be passing CIS'
 
 And, in addition to helping you to remediate any security issues with your workload(s) and cluster(s), this tool will help you to prove to your auditors that they are compliant with any standards you need to adhere to as well.
 
-## Module 4 - Kubernetes native firewall (NetworkPolicies)
+## Module 5 - Kubernetes native firewall (NetworkPolicies)
 
 Kubernetes has a built-in firewall which you configure through YAML documents called [NetworkPolices](https://kubernetes.io/docs/concepts/services-networking/network-policies/). These can have rules not just based on IPs or CIDR blocks/ranges - but based on Kubernetes Namespaces and Labels. This is much more dynamic and easier to manage!
 
