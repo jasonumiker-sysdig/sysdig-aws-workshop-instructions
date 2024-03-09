@@ -380,6 +380,25 @@ If these settings for **security-playground** were configured to be passing CIS'
 
 And, in addition to helping you to remediate any security issues with your workload(s) and cluster(s), this tool will help you to prove to your auditors that they are compliant with any standards you need to adhere to as well.
 
+There is another view of the same data which may prove more useful in many situations - **Inventory**. 
+
+This is the same information but from the perspective of the resource rather than from the compliance standard - meaning that the Compliance view is "show me what is passing or failing the standard" whereas the Inventory view is "show me how my resource is doing against the standard(s) applied to it (by the Zone)".
+
+Here we are looking at the security-playground deployment and seeing how it is doing first for its posture.
+![](instruction-images/inventory1.png)
+
+You can even click through to the same remediation steps right in this view too.
+![](instruction-images/inventory4.png)
+![](instruction-images/inventory5.png)
+
+Inventory also cross-references it with the vulnerability information in the next tab.
+![](instruction-images/inventory2.png)
+
+Finally, one of the common things we are is "How can I see what workloads have a particular CVE?" This filter is not possible in the Vulnerability section (those filters are more about the workloads than the vulnerabilities) - but it is possible here in Inventory.
+![](instruction-images/inventory3.png)
+
+And, as a reminder, you all are in one Sysdig account but are only seeing your own clusters/workloads. So this is something we can easily restrict via our built-in Authorization (via Zones tied to Teams) so that people will only see as much or as little of the environment in Sysdig as you'd like.
+
 ## Module 5 - Kubernetes native firewall (NetworkPolicies)
 
 Kubernetes has a built-in firewall which you configure through YAML documents called [NetworkPolices](https://kubernetes.io/docs/concepts/services-networking/network-policies/). These can have rules not just based on IPs or CIDR blocks/ranges - but based on Kubernetes Namespaces and Labels. This is much more dynamic and easier to manage!
