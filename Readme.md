@@ -399,7 +399,30 @@ Finally, one of the common things we are is "How can I see what workloads have a
 
 And, as a reminder, you all are in one Sysdig account but are only seeing your own clusters/workloads. So this is something we can easily restrict via our built-in Authorization (via Zones tied to Teams) so that people will only see as much or as little of the environment in Sysdig as you'd like.
 
-## Module 5 - Kubernetes native firewall (NetworkPolicies)
+## Module 5 - Risks and Attack Path
+
+So far we explored each of these capabilities (Runtime Threat Detection, Vulnerability Management and Posture Management) separately in their own UIs. But Sysdig is a comprehensive Cloud Native Application Protection Platform (CNAPP) - which means that we bring these all capabilities and all this data together to help you to visualise and prioritise with the full context end-to-end.
+
+Where we do that in the product is in Risks.
+
+If you go to Risks on the left side you'll see this:
+![](instruction-images/risks1.png)
+You can expand out the carrot to see more details. The fact that we see the Love icon shows that this is an active risk. And you see that this includes all of the categories:
+* It is exposed (in this case outside the Kubernetes cluster)
+* It has critical vulnerabilities
+* It has insecure configurations
+* And it has events where risky behavior has already been detected
+
+We can drill in even deeper by clicking on it. Here we see a smaller version of the attack path visualisation. Let's see a bigger one by clicking Explore in the upper right:
+![](instruction-images/risks2.png). 
+
+Here you can see all of the data Sysdig has about the security-playground workload but all brought together in one visualisation. And that, while any of these things are bad, the fact that this workload has all of them makes it a Critical Risk to prioritise.
+
+Once we are in the larger Attack Path visualisation we can click on any of the icons to drill down and go deeper into that - and maybe even resolve it right from this UI:
+![](instruction-images/risks3.png)
+![](instruction-images/risks4.png)
+
+## Module 6 - Kubernetes native firewall (NetworkPolicies)
 
 Kubernetes has a built-in firewall which you configure through YAML documents called [NetworkPolices](https://kubernetes.io/docs/concepts/services-networking/network-policies/). These can have rules not just based on IPs or CIDR blocks/ranges - but based on Kubernetes Namespaces and Labels. This is much more dynamic and easier to manage!
 
