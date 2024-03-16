@@ -407,7 +407,7 @@ Where we do that in the product is in Risks.
 
 If you go to Risks on the left side you'll see this:
 ![](instruction-images/risks1.png)
-You can expand out the carrot to see more details. The fact that we see the Love icon shows that this is an active risk. And you see that this includes all of the categories:
+You can expand out the carrot to see more details. The fact that we see the Live icon shows that this is an active risk (that not only does it have insecure configurations and/or critical vulnerabilities but we see recent critical Events that these might be getting exploited now). And you see that this includes all of the categories:
 * It is exposed (in this case outside the Kubernetes cluster)
 * It has critical vulnerabilities
 * It has insecure configurations
