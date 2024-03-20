@@ -6,6 +6,31 @@ We have provisioned a separate EKS cluster and EC2 instance (to serve as a jumpb
 
 We have also provisioned a user for you within Sysdig Secure. While this Sysdig SaaS tenancy is shared between everyone in the workshop today, your login is tied to a team within it which, in turn, is filtered to only show you information about your EKS cluster/environment.
 
+**Table of Contents**
+
+- [Logging into your environment](#logging-into-your-environment)
+  - [AWS Environment](#aws-environment)
+  - [Sysdig environment](#sysdig-environment)
+- [Module 1 - Runtime Threat Detection and Prevention (Workload/Kubernetes)](#module-1---runtime-threat-detection-and-prevention-workloadkubernetes)
+  - [Simulating an attack to generate Events within Sysdig](#simulating-an-attack-to-generate-events-within-sysdig)
+  - [The Activity Audit](#the-activity-audit)
+  - [Why did this attack work?](#why-did-this-attack-work)
+  - [How to fix this workload (security-playground)](#how-to-fix-this-workload-security-playground)
+  - [Seeing the fixes in action](#seeing-the-fixes-in-action)
+- [Module 2 - Runtime Threat Detection and Prevention (Cloud/AWS)](#module-2---runtime-threat-detection-and-prevention-cloudaws)
+  - [AWS IAM Roles for Service Accounts (IRSA)](#aws-iam-roles-for-service-accounts-irsa)
+  - [The Exploit](#the-exploit)
+  - [The Sysdig Detections](#the-sysdig-detections)
+  - [How to prevent this attack / fix this workload](#how-to-prevent-this-attack--fix-this-workload)
+- [Module 3 - Host and Container Vulnerability Management](#module-3---host-and-container-vulnerability-management)
+  - [Runtime Vulnerability Scanning](#runtime-vulnerability-scanning)
+- [Module 4 - Kubernetes Posture/Compliance (i.e. fixing misconfigurations)](#module-4---kubernetes-posturecompliance-ie-fixing-misconfigurations)
+- [Module 5 - Risks and Attack Path](#module-5---risks-and-attack-path)
+- [Module 6 - Kubernetes native firewall (NetworkPolicies)](#module-6---kubernetes-native-firewall-networkpolicies)
+  - [Using Sysdig to discover your traffic and generate NetworkPolicies](#using-sysdig-to-discover-your-traffic-and-generate-networkpolicies)
+    - [Controlling Network Egress - especially to the Internet](#controlling-network-egress---especially-to-the-internet)
+- [Conclusion](#conclusion)
+
 ## Logging into your environment
 
 ### AWS Environment
