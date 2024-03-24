@@ -35,7 +35,18 @@ We have also provisioned a user for you within Sysdig Secure. While this Sysdig 
 
 ### AWS Environment
 
-You'll have received your IAM username and password from the facilitator. To sign into your environment:
+You'll have received your IAM username and password from the facilitator. This environment consists of:
+* An EC2 Instance to serve as a "Jumpbox" to connect to the environment
+    * You'll connect to this via AWS SSM Session Manager via your web browser and the AWS Console
+    * An AWS IAM role preconfigured with access to your EKS cluster
+    * All the scripts/commands you'll run in this workshop preinstalled
+* A single-Node EKS cluster
+    * This has a number of workloads in a number of different Namespaces pre-installed
+        * We leverage different Namespaces to show the challanges with multi-tenancy of EKS as well as to apply different Sysdig policies to different workloads (to demonstrate the different ways you can configure those policies)
+* An S3 bucket (which you'll be using to exfiltrate some data in the workshop)
+![](instruction-images/diagram2.png)
+
+To sign into your environment:
 
 1. Open a web browser and go to https://aws.amazon.com/console/
 1. If prompted, choose to sign in with an IAM user (as opposed to the Root user) and enter the AWS Account ID of **sysdig-sales-engineering** 
@@ -158,7 +169,7 @@ Then click on one of the **cmds** for more details.
 In order for this attack to succeed many things had to be true:
 1. Our service was vulnerable to remote code execution - this could be either due to our own code being vulnerable (as was the case here) or an opensource package our app uses (from pip, npm, maven, nuget, etc.) being vulnerable
 1. Our service that we were **curl**'ing was running as **root** - so, not only could it read/write everything within the container's filesystem, but it was also root when it escaped out of the container to the host!
-1. The PodSpec had [**hostPID: true**](https://github.com/jasonumiker-sysdig/example-scenarios/blob/3da34f8429bd26b82a3ee2f052d2b654d308990f/k8s-manifests/04-security-playground-deployment.yaml#L18) as well as [privileged **securityContext**](https://github.com/jasonumiker-sysdig/example-scenarios/blob/3da34f8429bd26b82a3ee2f052d2b654d308990f/k8s-manifests/04-security-playground-deployment.yaml#L35) which allowed it to escape its container boundary (the Linux namespace it was being run in) to the host
+1. The PodSpec had [**hostPID: true**](https://github.com/jasonumiker-sysdig/example-scenarios/blob/3da34f8429bd26b82a3ee2f052d2b654d308990f/k8s-manifests/04-security-playground-deployment.yaml#L18) as well as [privileged **securityContext**](https://github.com/jasonumiker-sysdig/example-scenarios/blob/3da34f8429bd26b82a3ee2f052d2b654d308990f/k8s-manifests/04-security-playground-deployment.yaml#L35) which allowed it to escape its container boundary (the Linux namespace it was being run in) to the host and then control that hosts's container runtime (bypassing Kubernetes and the [kubelet](https://kubernetes.io/docs/concepts/overview/components/#kubelet)). That in turn lets it control all the other containers that happened to be running on that Node. ![](instruction-images/diagram1.png)
 1. The attacker was able to add new executables like **nmap** and the crypto miner **xmrig** to the container at runtime and run them
 1. The attacker was able to download those things from the Internet (because this Pod was able to reach everywhere on the Internet via its egress)
 1. The ServiceAccount for our service was over-provisioned and could call the K8s API to do things like launch other workloads (which it didn't need).
