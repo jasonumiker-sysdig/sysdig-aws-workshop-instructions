@@ -13,7 +13,6 @@ We have also provisioned a user for you within Sysdig Secure. While this Sysdig 
   - [Sysdig environment](#sysdig-environment)
 - [Module 1 - Runtime Threat Detection and Prevention (Workload/Kubernetes)](#module-1---runtime-threat-detection-and-prevention-workloadkubernetes)
   - [Simulating an attack to generate Events within Sysdig](#simulating-an-attack-to-generate-events-within-sysdig)
-  - [The Activity Audit](#the-activity-audit)
   - [Why did this attack work?](#why-did-this-attack-work)
   - [How to fix this workload (security-playground)](#how-to-fix-this-workload-security-playground)
   - [Seeing the fixes in action](#seeing-the-fixes-in-action)
@@ -152,17 +151,6 @@ And this is only a small sample of the Rules we have out-of-the-box as part of t
 (Optional) Feel free to copy **example-curls.sh** and play with generating your own curls if you want to see whether Sysdig will pick up various other things you may want to try!
 
 (Optional) Have a look at all our Managed Policies (go to **Policies** on the left and then **Runtime Policies**) as well as our Rules Library (go to **Policies** then expand out the **Rules** carrot menu and choose **Rules Library**). Drill down into the Falco YAML (noting that this is not a "magic black box" and you can write your own Rules and Policies). Focus on the Policies and Rules that you saw fire in our example.
-
-### The Activity Audit
-In addition to what you saw above, we also capture all the interactive commands that are run as well as the associated file and network activity in the Activity Audit - even if they do not fire an Event.
-
-This all gets aggregated together on the same timeline (though you can obviously filter it down too) - which helps to see what lateral movement people are doing hopping between machines.
-
-You can install the Sysdig Agent on any Linux machine (and soon Windows too!) - and we have installed it on our Jumpbox in addition to our EKS cluster. That means all of the interactive commands that we've run so far in the workshop will have been captured there! If somebody had SSHed onto any of the EKS Nodes or run a command anywhere our agent is installed we'd have captured it too the same way.
-
-To see that go to the **Investigate** section on the Left then **Activity Audit**.
-![](instruction-images/aa.png)
-Then click on one of the **cmds** for more details.
 
 ### Why did this attack work? 
 
