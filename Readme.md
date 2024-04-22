@@ -437,6 +437,19 @@ Finally, one of the common things we are is "How can I see what workloads have a
 
 And, as a reminder, you all are in one Sysdig account but are only seeing your own clusters/workloads. So this is something we can easily restrict via our built-in Authorization (via Zones tied to Teams) so that people will only see as much or as little of the environment in Sysdig as you'd like.
 
+### Scanning your IaC in your pipeline(s) (DevSecOps / Shifting Left)
+
+It is also possible to use the same Sysdig CLI scanner we used to scan for container image vulnerabilities to also scan your IaC (by adding a --iac) to ensure that is secure before deploying it.
+
+In order to do so you can run the following command:
+```
+./sysdig-cli-scanner --apiurl https://app.au1.sysdig.com --iac example-scenarios/k8s-manifests/04-security-playground-deployment.yaml
+```
+
+You could add this as a stage of a pipeline or as a git merge test where, if the scan failed, it would stop the pipeline/merge until the security misconfigurations were resolved. 
+
+Setting up such pipeline scans/gates is often referred to as "shifting left" (further into the development stages/lifecycle) or "DevSecOps".
+
 ## Module 5 - Risks and Attack Path
 
 So far we explored each of these capabilities (Runtime Threat Detection, Vulnerability Management and Posture Management) separately in their own UIs. But Sysdig is a comprehensive Cloud Native Application Protection Platform (CNAPP) - which means that we bring these all capabilities and all this data together to help you to visualise and prioritise with the full context end-to-end.
