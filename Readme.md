@@ -4,7 +4,7 @@ Welcome to Sysdig's hands-on workshop. In this workshop, you'll experience some 
 
 We have provisioned a separate EKS cluster and EC2 instance (to serve as a jumpbox/bastion) for each of you. You'll connect to that jumpbox via AWS SSM Session Manager in your browser - and it is preloaded with all the tools that you'll need to interact with your EKS cluster and work through today's labs.
 
-We have also provisioned a user for you within Sysdig Secure. While this Sysdig SaaS tenancy is shared between everyone in the workshop today, your login is tied to a team within it which, in turn, is filtered to only show you information about your EKS cluster/environment.
+We have also provisioned a user for you within Sysdig Secure. While this Sysdig SaaS tenancy is shared between everyone in the workshop today, your login is tied to a team within it which, in turn, is filtered (via a Zone) to only show you information about your EKS cluster/environment.
 
 **Table of Contents**
 
@@ -35,13 +35,13 @@ We have also provisioned a user for you within Sysdig Secure. While this Sysdig 
 ### AWS Environment
 
 You'll have received your IAM username and password from the facilitator. This environment consists of:
-* An EC2 Instance to serve as a "Jumpbox" to connect to the environment
+* An EC2 Instance to serve as a "Jumpbox" or Basion host to connect to the environment
     * You'll connect to this via AWS SSM Session Manager via your web browser and the AWS Console
-    * An AWS IAM role preconfigured with access to your EKS cluster
-    * All the scripts/commands you'll run in this workshop preinstalled
+    * It has an AWS IAM role assigned to it with access to your EKS cluster
+    * It has all the scripts/commands you'll run in this workshop preinstalled
 * A single-Node EKS cluster
     * This has a number of workloads in a number of different Namespaces pre-installed
-        * We leverage different Namespaces to show the challanges with multi-tenancy of EKS as well as to apply different Sysdig policies to different workloads (to demonstrate the different ways you can configure those policies)
+        * We leverage different Namespaces to show the challenges with multi-tenancy of EKS as well as to apply different Sysdig policies to different workloads (to demonstrate the different ways you can configure those policies and scope them within Sysdig)
 * An S3 bucket (which you'll be using to exfiltrate some data in the workshop)
 ![](instruction-images/diagram2.png)
 
@@ -80,28 +80,32 @@ You'll have received a login and password for Sysdig from the facilitator. To si
 
 In our first module, we'll be exploring Sysdig's capabilities around detecting - and even preventing - runtime threats.
 
-Regardless of how an attacker gets in, they will do many of the same things - a predictable sequence of things best explained by the [MITRE ATT&CK Framework](https://attack.mitre.org/). Sysdig's threat research team runs a large fleet of honeypots around the world to learn first-hand all the things people do once they get in - and then continually updates our library of [Rules](https://docs.sysdig.com/en/docs/sysdig-secure/policies/threat-detect-policies/manage-rules/) (what to look for) and [Managed Policies](https://docs.sysdig.com/en/docs/sysdig-secure/policies/threat-detect-policies/manage-policies/) (what to do when we find it) on behalf of all of our customers. You can also make your own custom (Falco) Rules and/or Policies beyond what we offer if you'd like - this is fully transparent and based on opensource tooling/standards rather than a magic black box!
+Regardless of how an attacker gets in, they will do many of the same things - a predictable sequence of things best explained by the [MITRE ATT&CK Framework](https://attack.mitre.org/). Sysdig's threat research team runs a large fleet of honeypots around the world to learn first-hand all the things people do once they get in - and then continually updates our library of [Rules](https://docs.sysdig.com/en/docs/sysdig-secure/policies/threat-detect-policies/manage-rules/) (possible behaviors to look for) and [Managed Policies](https://docs.sysdig.com/en/docs/sysdig-secure/policies/threat-detect-policies/manage-policies/) (which Rules to look for, their severity, and what to do when we find them) on behalf of all of our customers. You can also make your own custom ([Falco](https://falco.org/)) Rules and/or Policies beyond what we offer if you'd like - this is fully transparent and based on opensource tooling/standards rather than a magic black box!
 
-Our agent(s) continually watch for the **Rules** against various streams of activity (defined in your **Policies**) and then fire **Events** when it sees them, with all the relevant context, in real-time. It can do so against these sources - with more coming soon such as from other popular cloud/SaaS services (such as GitHub, Okta, etc.):
+When Sysdig see these Rules (as defined in the Polices) we generates **Events** with all the relevant context in real-time. And we can do so against these sources - with more coming soon such as from other popular cloud/SaaS services:
 * Linux kernel System Calls of your Nodes/Containers
 * The Kubernetes Audit Trail
 * The audit trails of AWS, Azure and GCP
+* Okta's audit trail
+* GitHub's audit Trail
+* MS Entra ID's audit Trail
 
 In addition to our 'traditional' Rules/Policies-based approach, there are three more features that round out our Threat Detection/Prevention capabilities:
-* [Container Drift](https://docs.sysdig.com/en/docs/sysdig-secure/policies/threat-detect-policies/manage-policies/drift-control/) - we can look for any executables that are introduced at runtime that were not in the container image as it was pulled - as well as optionally block them from running
+* [Container Drift Detection/Prevention](https://docs.sysdig.com/en/docs/sysdig-secure/policies/threat-detect-policies/manage-policies/drift-control/) - we can look for any executables that are introduced at runtime that were not in the container image as it was pulled - as well as optionally block them from running
+* Malware Detection/Prevention (Preview) - we can look for Malware (as defined in several threat feeds we watch) that tries to run - as well as optionally block them from running
 * [Crypto Mining ML Detection](https://docs.sysdig.com/en/docs/sysdig-secure/policies/threat-detect-policies/manage-policies/machine-learning/) - we have introduced our first Machine Learning enabled detection with a model specifically focused on detecting crypto-mining.
-* Malware (Preview) - we can look for Malware (as defined in several threat feeds we watch) that tries to run - as well as optionally block them from running
 
 ### Simulating an attack to generate Events within Sysdig
 
 1. In the Sysdig UI click on **Insights** on the left-hand side
     1. This will likely be empty (we've never seen any suspicious activity for your new environment) and therefore show a **Welcome to Insights** placeholder screen
+    1. In case it isn't empty, then you can choose a time range at the bottom of the screen such as the last 3 or 12 hours so that you are focused only on the new events that you are generating now
 1. So lets's generate some Events!
     1. Click this link to open the (simple yet insecure) code for the security-playground service on your cluster in a new tab - https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/docker-build-security-playground/app.py
         1. This Python app serves a **very** insecure REST API that will return the contents of any file on the filesystem, write any file to the filesystem and/or execute any file on the filesystem in response to simple **curl** commands
             1. And you can combine them to download/write a file then execute it for example
         1. This is simulating a very bad remote code execution (RCE) vulnerability - which could be either with your own code or in a package it uses (e.g. Log4J, Struts, etc.)
-            1. As it is detecting what happens when the vulnerability is being exploited that we're interested in here
+            1. As it is detecting what happens when any such vulnerability is being exploited - no matter what or how - that we're interested in here
     1. Go back to the the Session Manager terminal browser tab for your jumpbox
     1. Type **cat ./example-curls.sh** to have a look at a script with some example **curl** commands we are going to run against the security-playground service:
         1. Reading the sensitive path **/etc/shadow**
@@ -148,7 +152,7 @@ In addition to our 'traditional' Rules/Policies-based approach, there are three 
 
 And this is only a small sample of the Rules we have out-of-the-box as part of the service!
 
-(Optional) Feel free to copy **example-curls.sh** and play with generating your own curls if you want to see whether Sysdig will pick up various other things you may want to try!
+(Optional) Feel free to copy **example-curls.sh** to a new file and play with generating your own curls if you want to see whether Sysdig will pick up various other things you may want to try!
 
 (Optional) Have a look at all our Managed Policies (go to **Policies** on the left and then **Runtime Policies**) as well as our Rules Library (go to **Policies** then expand out the **Rules** carrot menu and choose **Rules Library**). Drill down into the Falco YAML (noting that this is not a "magic black box" and you can write your own Rules and Policies). Focus on the Policies and Rules that you saw fire in our example.
 
@@ -173,7 +177,7 @@ In order for this attack to succeed many things had to be true:
             verbs:
             - '*'
         ```
-    1. At least it was a Role rather than a ClusterRole - meaning it can only do things with this Namespace. But there is plenty of damage you can do with full admin within a Namespace!
+    1. At least it was a Role rather than a ClusterRole - meaning it can only do things with this security-playground Namespace. But there is plenty of damage you can do with just full admin within a Namespace!
 1. The attacker was able to reach the EC2 Metadata endpoint (169.254.0.0/16),  which is intended just for the EKS Node, from within the Pod
 
 These are all things we can fix:
@@ -186,7 +190,7 @@ And, if we do all three, then we could have prevented the **entire** attack (rat
 ### How to fix this workload (security-playground)
 
 For each of the causes above - these are the solutions:
-1. To fix the vulnerabilities in our case here, we can use a Static application security testing (SAST) product to identify our insecure code. Our partner [Snyk](https://snyk.io/product/snyk-code/) is a good choice here. 
+1. To fix the vulnerabilities in our case here, we can use a Static application security testing (SAST) product to identify our insecure code. Our partners like [Snyk](https://snyk.io/product/snyk-code/) and [Checkmarx](https://checkmarx.com/cxsast-source-code-scanning/) can help here. 
     1. ![](instruction-images/Snyk-SAST.png)
     1. Alternatively, if this was based on a known/public CVE within the app/container (such as Log4J etc.) instead, Sysdig's Vulnerability Management (which we'll explore in a future Module) would have detected it and let us know to patch either the base layer of our container or the code package to an updated version without the vulnerability
 1. In order to run this container as non-root we actually need to change the Dockerfile in the following ways. Here is the [Dockerfile](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/docker-build-security-playground/Dockerfile) before these changes - and [here](https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/docker-build-security-playground/Dockerfile-unprivileged) it is after.
@@ -237,7 +241,7 @@ One last thing you can try is to test trying to change security-playground-restr
 
 Run **kubectl events security-playground -n security-playground-restricted** to see the Pod creation failures.
 
-This is why blocking at runtime with PSAs are a bit of a blunt instrument - you should also let people know earlier/lefter in the pipeline that this is going to happen (and they need to fix the PodSpecs) rather than have them scratch their head on why their pods are not launching.
+This is why blocking at runtime with PSAs are a bit of a blunt instrument - you should also let people know earlier/lefter in the pipeline that this is going to happen (and they need to fix the PodSpecs) rather than have them scratch their head on why their pods are not launching at run/deploy time.
 
 This table summarises our experiments in fixing this workload:
 |Exploit in the example-curl.sh|example-curl|security-playground|security-playground-restricted|security-playground-restricted + container drift enforcement|security-playground-restricted + malware enforcement|
@@ -257,7 +261,7 @@ This table summarises our experiments in fixing this workload:
 
 ## Module 2 - Runtime Threat Detection and Prevention (Cloud/AWS)
 
-Sysdig's Runtime Threat Detection is not limited to your Linux Kernel Syscalls and Kubernetes Audit trail - it can also do agentless runtime threat detection against AWS CloudTrail (as well as Azure, GCP, Okta and GitHub - with more coming all the time)! When we say agentless, we mean that the Falco watching your CloudTrail is run by Sysdig in our SaaS backend for you. You optionally *could* run an agent in your account called the [Cloud Connector](https://docs.sysdig.com/en/docs/installation/sysdig-secure/connect-cloud-accounts/aws/agent-based-with-ciem/) as well - but most customers prefer Sysdig does that for them as-a-service.
+Sysdig's Runtime Threat Detection is not limited to your Linux Kernel Syscalls and Kubernetes Audit trail - it can also do agentless runtime threat detection against AWS CloudTrail (as well as Azure, GCP, Okta, Entra ID and GitHub - with more coming all the time)! When we say agentless, we mean that the Falco watching your CloudTrail is run by Sysdig in our SaaS backend for you. You optionally *could* run an agent in your account called the [Cloud Connector](https://docs.sysdig.com/en/docs/installation/sysdig-secure/connect-cloud-accounts/aws/agent-based-with-ciem/) as well - but most customers now prefer that Sysdig does this for them as-a-service without an agent.
 
 Let's have a quick look at an AWS CloudTrail detection - and why covering both your EKS and AWS environments is important.
 
@@ -287,7 +291,7 @@ It has the following in-line policy - one which we commonly see which is a * for
 }
 ```
 
-You'll also note if you look at the trust relationships you'll see that this role can be only be assumed by the **irsa** ServiceAccount in the **security-playground** Namespace within the EKS cluster that has been assigned this unique OIDC provider for AWS IAM to integrate with.
+You'll also note that, if you look at the trust relationships of the IAM Role in the AWS Console, you'll see that this role can be only be assumed by the **irsa** ServiceAccount in the **security-playground** Namespace within the EKS cluster that has been assigned this particular unique OIDC provider for AWS IAM to integrate with.
 
 ```
 {
@@ -313,21 +317,23 @@ You'll also note if you look at the trust relationships you'll see that this rol
 ### The Exploit
 If we install the AWS CLI into our container at runtime and run some commands we'll see if our Pod has been assigned an IRSA role and they succeed. There is an **example-curls-bucket-public.sh** file in /root - have a look at that with a **cat example-curls-bucket-public.sh** then run it with **./example-curls-bucket-public.sh**
 
-THe install of the AWS CLI succeeds but the S3 changes fail as we don't have that access. We have an updated manifest for the security-playground Deployment that will use this **irsa** ServiceAccount instead of the **default** one we have been using. Apply that by running **kubectl apply -f security-playground-irsa.yaml** to apply that change. Now re-run **./example-curls-bucket-public.sh** and this time they will work!
+The install of the AWS CLI succeeds but the S3 changes fail as we don't have that access. We have an updated manifest for the security-playground Deployment that will use this **irsa** ServiceAccount instead of the **default** one we have been using. Apply that by running **kubectl apply -f security-playground-irsa.yaml** to apply that change. Now re-run **./example-curls-bucket-public.sh** and this time they will work!
 
 If you look at this bucket in the S3 console you'll see that it (and all of its contents) is now public (and can be downloaded/exfiltrated by the attacker right from the S3 public APIs)!
 ![](instruction-images/bucketpublic.png)
+
+This is because when you assign an AWS IAM Role to a Pod via things like IRSA it means that, if somebody can break out of your app with a remote code execution vulnerability, they can do anything that IAM Role can do within the runtime context of that Pod.
 
 ### The Sysdig Detections
 
 On the host side you'll see many **Drift Detections** which will include the commands being run against AWS - and which we could have blocked rather than just detected with Container Drift. This is a good reason to not include CLIs like the AWS one in your images as well! ![](instruction-images/s3drift.png)
 
-But on the AWS API side we'll see that the protections against this bucket being made public were removed as well as the new Bucket Policy (making them public) were applied as well!
+But on the AWS API side (go to Insights -> Cloud Activity) you'll see that the protections against this bucket being made public were removed as well as the new Bucket Policy (making them public) were subsequently applied as well!
 
 ![](instruction-images/s3cloudevents.png)
 ![](instruction-images/s3cloudevents2.png)
 
-> **NOTE**: This is, unfortunately, not visible to you just yet as we have your Sysdig user/Team filtered to show just your Kubernetes cluster and Jumpbox. The course instructor will show you these events as all of you run these commands in this AWS account today - and they will be  made visible to the workshop attendees in the future after some forthcoming improvements to the workshop on Team scoping.
+> **NOTE**: As this is all within one region of one AWS account you'll see that, unlike the Kubernetes events, you'll see the events for the other attendees as well. While we do offer a filter based on AWS Tags (in addition to AWS account and region), unfortunately CloudTrail doesn't include the Tags of the resource(s) involved in the trail - and so it isn't currently possible to filter these down with enough granularity where you can only see your own Events. The AWS Tag filter does apply to Inventory/Compliance though.
 
 ### How to prevent this attack / fix this workload
 
@@ -337,11 +343,11 @@ This IRSA example could have been prevented with:
     * ![](https://docs.aws.amazon.com/images/IAM/latest/UserGuide/images/EffectivePermissions-scp-boundary-id.png)
 * Enforcing Container Drift with Sysdig so the AWS CLI isn't able to be downloaded/run at runtime (as long as you also ensure it also isn't in your images)
 
-Either would have prevented it in our example but ideally you'd do both things...
+Either would have prevented it in our example but, ideally, you'd do both things - for extra protection!
 
 ## Module 3 - Host and Container Vulnerability Management
 
-There are many tools/vendors who can help you scan your Linux hosts and/or container images for vulnerabilities. And, depending on the solution, they scan them in different place - such as a developer's machine, your pipeline(s), your registry, and/or at runtime. Sysdig has one that can scan for known CVEs in all of those places - and, when when we do it at runtime, the added context we bring to it really can help you to route and prioritise things!
+Sysdig has an integrated solution for both (Linux) host as well as container vulnerabilities which scans for known CVEs in your pipelines, your registries as well as at runtime. And, when when we do it at runtime, the added context we bring to it really can help you to route and prioritise things!
 
 ### Runtime Vulnerability Scanning
 To explore Sysdig's runtime vulnerability scanning:
@@ -360,7 +366,7 @@ To explore Sysdig's runtime vulnerability scanning:
 1. Close that vulnerability detail pane
 1. Click on the **In Use** filter button - this excludes all the vulnerabilities that we have never seen run (and therefore are much less likely to be exploitable).
 1. Click on the **Has fix** button - this excludes those vulnerabilities that do not yet have a new version with a fix available (and therefore your team can't patch them yet)
-    1. What we are left with is those vulnerabilities that are actually running (not just in the image) **and** for which there is a fix. This is a more reasonable and prioritised patching task to give somebody!
+    1. What we are left with is those vulnerabilities that are actually running (not just in the image) **and** for which there is a fix. This is a more reasonable and prioritized patching task to give somebody!
     1. ![](instruction-images/vuln5.png)
 
 ### Pipeline vulnerability scanning
@@ -371,7 +377,7 @@ Here are the instructions for how to install and run our vulnerability CLI scann
 
 We have already installed it on your jumpbox for you. You can run a scan of the image **logstash:7.16.1** which is an image that has Log4J in it by running the following command:
 
-**./sysdig-cli-scanner -a app.au1.sysdig.com logstash:7.16.1**
+**./sysdig-cli-scanner -a https://app.au1.sysdig.com logstash:7.16.1**
 
 Not only do you get that output into your build logs for the pipeline stage, but you can also explore the results the Sysdig SaaS UI by following that link listed in the output or going to **Vulnerabilities** -> **Pipeline** in the UI. Note that this is missing the runtime context (as, since it was scanned in a pipeline, and we don't yet know that runtime context).
 
@@ -388,7 +394,7 @@ The Center for Internet Security (CIS) publishes a security benchmark for many c
 1. Go to the Sysdig tab in your browser
 1. Go to **Posture** then **Compliance**
 1. We have used our [Team and Zone-based authorization](https://docs.sysdig.com/en/docs/sysdig-secure/policies/zones/) so that your Team can only see your own cluster/Zone.
-1. Click on the **CIS Amazon Elastic Kubernetes Service Benchmark** under your heading (this is the only compliance standard we've set against your Zone here - but we have many others such as NIST, SOC2, PCIDSS, etc.)
+1. Click on the **CIS Amazon Elastic Kubernetes Service Benchmark** under your heading (this is the only compliance standard we've set against your Zone here - but we have many others such as NIST, SOC2, PCI-DSS, etc.)
     1. ![](instruction-images/posture1.png)
 1. There are some controls here that would have prevented our attack. 
 1. If you click into the **Show Results** link for each you'll see the list of failing resources then you can click **View Remediation** next to the **security-playground** Resource to see the Remediation instructions:
@@ -427,7 +433,7 @@ And, as a reminder, you all are in one Sysdig account but are only seeing your o
 
 ### Scanning your IaC in your pipeline(s) (DevSecOps / Shifting Left)
 
-It is also possible to use the same Sysdig CLI scanner we used to scan for container image vulnerabilities to also scan your IaC (by adding a --iac) to ensure that is secure before deploying it.
+It is also possible to use the same Sysdig CLI scanner we used to scan for container image vulnerabilities to also scan your Infrastructure as Code (by adding a --iac) to ensure that is secure before deploying it.
 
 In order to do so you can run the following command:
 ```
@@ -440,7 +446,7 @@ Setting up such pipeline scans/gates is often referred to as "shifting left" (fu
 
 ## Module 5 - Risks and Attack Path
 
-So far we explored each of these capabilities (Runtime Threat Detection, Vulnerability Management and Posture Management) separately in their own UIs. But Sysdig is a comprehensive Cloud Native Application Protection Platform (CNAPP) - which means that we bring these all capabilities and all this data together to help you to visualise and prioritise with the full context end-to-end.
+So far we explored each of these capabilities (Runtime Threat Detection, Vulnerability Management and Posture Management) separately in their own UIs. But Sysdig is a comprehensive Cloud Native Application Protection Platform (CNAPP) - which means that we bring these all capabilities and all this data together to help you to visualize and prioritise with the full context end-to-end.
 
 Where we do that in the product is in Risks.
 
@@ -465,16 +471,16 @@ Once we are in the larger Attack Path visualisation we can click on any of the i
 
 Kubernetes has a built-in firewall which you configure through YAML documents called [NetworkPolices](https://kubernetes.io/docs/concepts/services-networking/network-policies/). These can have rules not just based on IPs or CIDR blocks/ranges - but based on Kubernetes Namespaces and Labels. This is much more dynamic and easier to manage!
 
-It is not enabled out-of-the-box on many Kubernetes distributions/offerings including EKS. For EKS, you need to choose a NetworkPolicy Provider - the common ones being [Calico](https://www.tigera.io/project-calico/) and [Cilium](https://cilium.io/). AWS provides [documentation for installing Calico](https://docs.aws.amazon.com/eks/latest/userguide/calico.html) so that is the one we'll use. It has been pre-installed on your clusters. These providers basically configure a local firewall on each and every Kubernetes Node - and update them across all the Nodes to enforce the NetworkPolicies as required.
+It is not enabled out-of-the-box on many Kubernetes distributions/offerings including EKS. For EKS, you need to [set a configuration option on their CNI cluster Add-on](https://docs.aws.amazon.com/eks/latest/userguide/cni-network-policy.html) (which we've done for you here today). These CNI providers basically configure a local firewall on each and every Kubernetes Node - and update them continually across all the Nodes to enforce the NetworkPolicies as required.
 
-Even after installing a provider every Pod can talk to every other Pod by default. So you need to implement policies to restrict that traffic - with the most secure option being to flip to a default-deny and then specifically allow everything that is required. This can be a bit daunting adding them to existing environments as you'll worry that they make break things. This is where Sysdig can help.
+Even after installing/configuring a CNI to be able to enforce NetworkPolicies there aren't any by default - so every Pod can talk to every other Pod by default. So, you need to implement policies to restrict that traffic - with the most secure option being to flip to a default-deny and then specifically allow *everything* that is required. This can be a bit daunting adding them to existing environments as you'll worry that they make break things. This is where Sysdig can help.
 
 ### Using Sysdig to discover your traffic and generate NetworkPolicies
 
 Sysdig's keeps track of all the network flows and works out the Kubernetes context/labels of everything involved. This allows us to show you the traffic we've seen as well as help you generate NetworkPolicies that would allow only that traffic. In our UI you can untick things we've seen if you don't want to allow them as well.
 
 To explore this feature:
-1. Run **./example-curls-networkpolicy.sh** and see how our security-playground Pod can reach hello-server (running in a different Namespace)
+1. Run **./example-curls-networkpolicy.sh** and see how our security-playground Pod can reach hello-server (which is running in a different Kubernetes Namespace)
 1. Open the Sysdig tab in your browser
 1. Go to **Network** on the left
 1. Pick your EKS cluster as well as the Namespace **hello** and the type **Service**
@@ -538,6 +544,6 @@ To learn more about the syntax of NetworkPolicies there is a great resource on G
 
 This was just a brief introduction of some of the many capabilities that Sysdig offers customers to help with securing your Kubernetes environments, including AWS EKS, as-a-service.
 
-We'd love to show you more about what Sysdig can do for you in a free trial in your own enviornment. Reach out to your facilitator for details.
+We'd love to show you more about what Sysdig can do for you in a free trial in your own environment. Reach out to your facilitator for details.
 
 Thank you for coming!
