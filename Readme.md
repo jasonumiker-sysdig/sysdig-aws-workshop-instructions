@@ -60,7 +60,7 @@ To sign into your environment:
     1. ![](instruction-images/instances2.png)
 1. Choose the **Session Manager** tab and then click the **Connect** button 
     1. ![](instruction-images/connect.png)
-1. Once your terminal window opens type **sudo bash** then **cd ~** (as all of our workshop content is pre-installed in the root user's home directory) 
+1. Once your terminal window opens type **sudo bash** then `cd ~` (as all of our workshop content is pre-installed in the root user's home directory) 
     1. **NOTE:** if you close and re-open the Session Manager Session/Terminal window then you'll need to rerun those two commands to return to the root user and its home directory.
 1. Type **kubectl get pods -A** and you'll see a list of all the running Pods in your EKS cluster.
 
