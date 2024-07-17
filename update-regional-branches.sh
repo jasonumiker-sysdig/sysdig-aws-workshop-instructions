@@ -54,3 +54,14 @@ git add ./Readme.md
 git commit -m "CDG Branch"
 git push --set-upstream origin CDG
 git checkout main
+sleep 10
+# MEL
+git branch MEL
+git checkout MEL
+sed -i -e "s/\*\*Sydney\*\*/\*\*Melbourne\*\*/g" Readme.md
+sed -i -e "s|region.png|region-mel.png|g" Readme.md
+rm ./Readme.md-e
+git add ./Readme.md
+git commit -m "MEL Branch"
+git push --set-upstream origin MEL
+git checkout main
