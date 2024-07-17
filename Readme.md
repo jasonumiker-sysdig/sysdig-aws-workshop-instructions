@@ -50,8 +50,8 @@ To sign into your environment:
 1. Open a web browser and go to https://aws.amazon.com/console/
 1. If prompted, choose to sign in with an IAM user (as opposed to the Root user) and enter the AWS Account ID of **sysdig-sales-engineering** 
 1. Enter the IAM username and password you were provided and click the **Sign in** button
-1. Pick the **Sydney** region in the drop-down in the upper right of the console
-    1. ![](instruction-images/region.png)
+1. Pick the **Melbourne** region in the drop-down in the upper right of the console
+    1. ![](instruction-images/region-mel.png)
 1. Go to the EC2 service's console (you can type EC2 in the Search box on top and then click on the EC2 service in the results)
 1. Click on the **Instances (running)** link under **Resources** to be taken to a list of running EC2 Instances 
     1. ![](instruction-images/instances1.png)
