@@ -97,9 +97,8 @@ In addition to our 'traditional' Rules/Policies-based approach, there are three 
 
 ### Simulating an attack to generate Events within Sysdig
 
-1. In the Sysdig UI click on **Insights** on the left-hand side
-    1. This will likely be empty (we've never seen any suspicious activity for your new environment) and therefore show a **Welcome to Insights** placeholder screen
-    1. In case it isn't empty, then you can choose a time range at the bottom of the screen such as the last 3 or 12 hours so that you are focused only on the new events that you are generating now
+1. In the Sysdig UI hover over **Threats** on the left-hand side and click on Kubernetes under Activity
+    1. Pick the three hour time range (3H) on the bottom to show only the events you are about to generate. This should start out as empty.
 1. So lets's generate some Events!
     1. Click this link to open the (simple yet insecure) code for the security-playground service on your cluster in a new tab - https://github.com/jasonumiker-sysdig/example-scenarios/blob/main/docker-build-security-playground/app.py
         1. This Python app serves a **very** insecure REST API that will return the contents of any file on the filesystem, write any file to the filesystem and/or execute any file on the filesystem in response to simple **curl** commands
@@ -123,10 +122,10 @@ In addition to our 'traditional' Rules/Policies-based approach, there are three 
     1. Then go back to the Sysdig UI tab and refresh that tab in your browser
         1. You'll see a circular visualisation/heatmap of which clusters, namespaces and Pods the runtime events we've seen are coming from on the left
         1. And it also gives you either a summary of those events in the **Summary** tab or a full timeline of them in the **Events** tab on the right
-        1. ![](instruction-images/insights2.png)
+        1. ![](instruction-images/threats.png)
     1. Choose the Events tab on the right
     1. As you can see there are a number of events that Sysdig picked up here - in real-time!
-        1. ![](instruction-images/insights3.png)
+        1. ![](instruction-images/threats2.png)
     1. If you click into the the top **Detect outbound connections to common miner pools** and then scroll through it you'll see all the context of that event including details of the process, the network, the AWS account, the Kubernetes cluster/namespace/deployment, the host as well as the container
        1. In particular the process tree view shows us that our Python app (gunicorn) launched a shell that launched the crypto miner xmrig - that looks suspicious!
        1. ![](instruction-images/processtree.png)
@@ -223,7 +222,7 @@ If we also add in Sysdig enforcing that any Container Drift is prevented (that n
 * Go to **Policies** -> **Runtime Policies** and then look at **security-playground-restricted-nodrift** - Note that rather than just detecting drift (as in the other Namespaces) we are blocking it if the workload is in the **security-playground-restricted-nodrift** Namespace
     * And we have a another copy of our security-playground-restricted service running there on a different HostPort
 * Run **./example-curls-restricted-nodrift.sh** which runs all those same curls but against a workload that is both restricted like the last example but also has Sysdig preventing Container Drift (rather than just detecting it)
-    1. If you look at the resulting Events in our Insights UI you'll see the Drift was **prevented** rather than just detected this time
+    1. If you look at the resulting Events in our Threats UI you'll see the Drift was **prevented** rather than just detected this time
     1. ![](instruction-images/driftprevented.png)
 
 And, we also can now block instead of just detecting Malware.
@@ -231,7 +230,7 @@ To see that:
 * Go to **Policies** -> **Runtime Policies** and then look at **security-playground-restricted-nomalware** - Note that rather than just detecting malware (as in the other Namespaces) we are blocking it if the workload is in the **security-playground-restricted-nomalware** Namespace
     * And we have a another copy of our security-playground-restricted service running there on a different HostPort
 * Run **./example-curls-restricted-nomalware.sh** which runs all those same curls but against a workload that is both restricted but also has Sysdig preventing malware (rather than just detecting it) (but not blocking Container Drift - as we want to show that the malware tries to run so we can block it with that)
-    1. If you look at the resulting Events in our Insights UI you'll see the Malware was **prevented** from running rather than just detected this time
+    1. If you look at the resulting Events in our Threats UI you'll see the Malware was **prevented** from running rather than just detected this time
     1. ![](instruction-images/malware.png)
 
 So, as you can see, a combination of fixing the posture of the workload as well as Sysdig's Container Drift and Malware Detection goes a **long** way to preventing so many common attacks - even against workload with such critical vulnerabilities!
@@ -328,7 +327,7 @@ This is because when you assign an AWS IAM Role to a Pod via things like IRSA it
 
 On the host side you'll see many **Drift Detections** which will include the commands being run against AWS - and which we could have blocked rather than just detected with Container Drift. This is a good reason to not include CLIs like the AWS one in your images as well! ![](instruction-images/s3drift.png)
 
-But on the AWS API side (go to Insights -> Cloud Activity) you'll see that the protections against this bucket being made public were removed as well as the new Bucket Policy (making them public) were subsequently applied as well!
+But on the AWS API side (go to Threats -> Cloud Activity) you'll see that the protections against this bucket being made public were removed as well as the new Bucket Policy (making them public) were subsequently applied as well!
 
 ![](instruction-images/s3cloudevents.png)
 ![](instruction-images/s3cloudevents2.png)
@@ -351,7 +350,7 @@ Sysdig has an integrated solution for both (Linux) host as well as container vul
 
 ### Runtime Vulnerability Scanning
 To explore Sysdig's runtime vulnerability scanning:
-1. Go to the Sysdig browser tab and go to **Vulnerabilities** on the left and then **Runtime**.
+1. Go to the Sysdig browser tab and go to **Vulnerabilities** on the left and then **Runtime** under Findings.
     1. This is a list of all of the running containers in your environment within the last 15 minutes as well as all the hosts/Nodes that our agent is installed on
     1. It is automatically sorted by severity for you - so the container image on top is the most important to fix (based on the quantity and severity of the In Use vulnerabilities)
     1. ![](instruction-images/vuln1.png)
@@ -392,7 +391,7 @@ Sysdig can ensure you are compliant with many common standards such as CIS, NIST
 The Center for Internet Security (CIS) publishes a security benchmark for many common resources - including EKS. Learn more at https://www.cisecurity.org/benchmark/kubernetes. We'll be looking at your cluster and its workloads to see if they are compliant with that standard in this module.
 
 1. Go to the Sysdig tab in your browser
-1. Go to **Posture** then **Compliance**
+1. Hover over **Compliance** on the left navigation pane and then click **Overview**
 1. We have used our [Team and Zone-based authorization](https://docs.sysdig.com/en/docs/sysdig-secure/policies/zones/) so that your Team can only see your own cluster/Zone.
 1. Click on the **CIS Amazon Elastic Kubernetes Service Benchmark** under your heading (this is the only compliance standard we've set against your Zone here - but we have many others such as NIST, SOC2, PCI-DSS, etc.)
     1. ![](instruction-images/posture1.png)
@@ -419,15 +418,12 @@ This is the same information but from the perspective of the resource rather tha
 Here we are looking at the security-playground deployment and seeing how it is doing first for its posture.
 ![](instruction-images/inventory1.png)
 
-You can even click through to the same remediation steps right in this view too.
-![](instruction-images/inventory4.png)
-![](instruction-images/inventory5.png)
-
-Inventory also cross-references it with the vulnerability information in the next tab.
+You can even click through to the same remediation steps right in this view too (hover your mouse over the control to see View Remediation).
 ![](instruction-images/inventory2.png)
-
-Finally, one of the common things we are is "How can I see what workloads have a particular CVE?" This filter is not possible in the Vulnerability section (those filters are more about the workloads than the vulnerabilities) - but it is possible here in Inventory.
 ![](instruction-images/inventory3.png)
+
+Finally, one of the common things we are is "How can I see what workloads have a particular CVE?" This filter is not possible in the Vulnerability section (those filters are more about the workloads than the vulnerabilities) - but it is possible here in Inventory. Put in a filter for **Vulnerability in CVE-2023-45853** as an example.
+![](instruction-images/inventory4.png)
 
 And, as a reminder, you all are in one Sysdig account but are only seeing your own clusters/workloads. So this is something we can easily restrict via our built-in Authorization (via Zones tied to Teams) so that people will only see as much or as little of the environment in Sysdig as you'd like.
 
