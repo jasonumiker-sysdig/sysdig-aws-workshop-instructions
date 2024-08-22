@@ -50,8 +50,8 @@ To sign into your environment:
 1. Open a web browser and go to https://aws.amazon.com/console/
 1. If prompted, choose to sign in with an IAM user (as opposed to the Root user) and enter the AWS Account ID of **sysdig-sales-engineering** 
 1. Enter the IAM username and password you were provided and click the **Sign in** button
-1. Pick the **Sydney** region in the drop-down in the upper right of the console
-    1. ![](instruction-images/region.png)
+1. Pick the **Paris** region in the drop-down in the upper right of the console
+    1. ![](instruction-images/region-cdg.png)
 1. Go to the EC2 service's console (you can type EC2 in the Search box on top and then click on the EC2 service in the results)
 1. Click on the **Instances (running)** link under **Resources** to be taken to a list of running EC2 Instances 
     1. ![](instruction-images/instances1.png)
@@ -71,8 +71,8 @@ To sign into your environment:
 You'll have received a login and password for Sysdig from the facilitator. To sign into your environment:
 
 1. Open a web browser and go to https://sysdig.com
-1. Under the Log In dropdown on the top right of the page choose **AWS-AP-Sydney** under **Sysdig Secure** (NOTE: not Sysdig Monitor which we won't be looking at today)
-    1. ![](instruction-images/sysdiglogin.png)
+1. Under the Log In dropdown on the top right of the page choose **EU-Central** under **Sysdig Secure** (NOTE: not Sysdig Monitor which we won't be looking at today)
+    1. ![](instruction-images/sysdiglogin-cdg.png)
 1. Enter the email address and password you were provided for Sysdig and click the **Log in** button
 1. If you see the Customize your Sysdig experience screen, then click the **Get into Sysdig** button in the lower right hand corner to take you through to the **Home** screen
 
@@ -376,7 +376,7 @@ Here are the instructions for how to install and run our vulnerability CLI scann
 
 We have already installed it on your jumpbox for you. You can run a scan of the image **logstash:7.16.1** which is an image that has Log4J in it by running the following command:
 
-**./sysdig-cli-scanner -a https://app.au1.sysdig.com logstash:7.16.1**
+**./sysdig-cli-scanner -a https://eu1.app.sysdig.com logstash:7.16.1**
 
 Not only do you get that output into your build logs for the pipeline stage, but you can also explore the results the Sysdig SaaS UI by following that link listed in the output or going to **Vulnerabilities** -> **Pipeline** in the UI. Note that this is missing the runtime context (as, since it was scanned in a pipeline, and we don't yet know that runtime context).
 
@@ -433,7 +433,7 @@ It is also possible to use the same Sysdig CLI scanner we used to scan for conta
 
 In order to do so you can run the following command:
 ```
-./sysdig-cli-scanner --apiurl https://app.au1.sysdig.com --iac example-scenarios/k8s-manifests/04-security-playground-deployment.yaml
+./sysdig-cli-scanner --apiurl https://eu1.app.sysdig.com --iac example-scenarios/k8s-manifests/04-security-playground-deployment.yaml
 ```
 
 You could add this as a stage of a pipeline or as a git merge test where, if the scan failed, it would stop the pipeline/merge until the security misconfigurations were resolved. 
