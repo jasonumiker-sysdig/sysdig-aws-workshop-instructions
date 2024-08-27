@@ -478,7 +478,7 @@ Sysdig's keeps track of all the network flows and works out the Kubernetes conte
 To explore this feature:
 1. Run **./example-curls-networkpolicy.sh** and see how our security-playground Pod can reach hello-server (which is running in a different Kubernetes Namespace)
 1. Open the Sysdig tab in your browser
-1. Go to **Network** on the left
+1. Go to **Inventory** then **Network** on the left
 1. Pick your EKS cluster as well as the Namespace **hello** and the type **Service**
     1. ![](instruction-images/network1.png)
 1. In the right-hand pane we can see that that the hello Namespace consists of:
@@ -510,7 +510,7 @@ This isn't just useful for controlling the ingress to services like we just did 
 
 Let's look at how this could help with our insecure security-playground example from above:
 1. Go back to the Sysdig browser tab
-1. In the **Network** section choose the **security-playground** namespace and the **Deployment** object type
+1. In the **Network** section of **Inventory** choose the **security-playground** namespace and the **Deployment** object type
     1. ![](instruction-images/network6.png)
 1. Here you'll not only see the other side of the hello-server interaction (this deployment calling out to hello-server) - but also all the Internet IPs that it talked out to as we did our curls - to download apt packages and talk to the crypto miner pool etc.
 1. You can generate a NetworkPolicy excluding all that Internet egress like we did above - go to the **Egress** tab
